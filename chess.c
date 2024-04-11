@@ -23,13 +23,18 @@ enum {
   white, black
 };
 
-Piece *new_piece(char type, int colour, Square *square) {
-  Piece *piece = (Piece*) malloc(sizeof(Piece));
-  piece->type = type;
-  piece->colour = colour;
-  piece->square = square;
-  return piece;
-}
+const U64 not_a_col = 18374403900871474942ULL;
+const U64 not_h_col = 9187201950435737471ULL;
+const U64 not_ab_col = 18229723555195321596ULL;
+const U64 not_gh_col = 4557430888798830399ULL;
+const U64 not_8_row = 18446744073709551360ULL;
+const U64 not_87_row = 18446744073709486080ULL;
+const U64 not_1_row = 72057594037927935ULL;
+const U64 not_12_row = 281474976710655ULL;
+
+U64 pawn_attacks[2][64];
+U64 knight_attacks[64];
+
 
 void set_bit(U64 *piece, int pos) {
   (*piece) = (*piece) | (1ULL << pos);
@@ -53,39 +58,62 @@ void print_board(U64 board) {
     printf("| %d\n", 8-row);
   }
   printf("  +-----------------+\n");
-  printf("    a b c d e f g h\n");
+   printf("    a b c d e f g h\n");
 }
 
 
 
-void generate_pawn_attacks(int pos, int color) {
+
+U64 generate_pawn_attacks(int pos, int color) {
 
   U64 attack_board = 0ULL;
   U64 position_board = 0ULL;
   set_bit(&position_board, pos);
-
-  print_board(position_board);
-
+  
   if (!color) { // white
-    attack_board = attack_board | (position_board >> 7);
-    attack_board = attack_board | (position_board >> 9);
-
+    if ((position_board & not_a_col)) attack_board |= (position_board >> 9); // pawn not in a row
+    if ((position_board & not_h_col)) attack_board |= (position_board >> 7); // pawn not in h row
   } else { // black
-    attack_board = attack_board | (position_board << 7);
-    attack_board = attack_board | (position_board << 9);
+    if ((position_board & not_h_col)) attack_board |= (position_board << 9); 
+    if ((position_board & not_a_col)) attack_board |= (position_board << 7); 
   }
-  print_board(attack_board);
+  return attack_board;
+}
 
-
+void init_pawn_attacks() {
+  for (int i=0; i<64; i++) {
+    pawn_attacks[white][i] = generate_pawn_attacks(i, white);
+    pawn_attacks[black][i] = generate_pawn_attacks(i, black);
+  }
 }
 
 
+U64 generate_knight_attacks(int pos) {
 
+  U64 attack_board = 0ULL;
+  U64 position_board = 0ULL;
+  set_bit(&position_board, pos);
+  print_board(position_board);
+  
+ 
+  if ((position_board & not_gh_col)) attack_board |= (position_board >> 6); // 1 up 2 right
+  if ((position_board & not_ab_col)) attack_board |= (position_board >> 10); // 1 up 2 left
+  if ((position_board & not_a_col)) attack_board |= (position_board >> 17); // 2 up 1 left
+  if ((position_board & not_h_col)) attack_board |= (position_board >> 15); // 2 up 1 right
 
+  if ((position_board & not_ab_col)) attack_board |= (position_board << 6); // 1 down 2 left
+  if ((position_board & not_gh_col)) attack_board |= (position_board << 10); // 1 down 2 right
+  if ((position_board & not_h_col)) attack_board |= (position_board << 17); // 2 down 1 right
+  if ((position_board & not_a_col)) attack_board |= (position_board << 15); // 2 down 1 left
+    
+  return attack_board;
+}
 
-
-
-
+void init_knight_attacks() {
+  for (int i=0; i<64; i++) {
+    knight_attacks[i] = generate_knight_attacks(i);
+  }
+}
 
 
 
@@ -96,8 +124,29 @@ int main(int argc, char *argv[]) {
   U64 white_pawns = 0ULL;
   // set_bit(&white_pawns, a3);
 
-  generate_pawn_attacks(d3, black);
+  // generate_pawn_attacks(h8, white);
+  generate_knight_attacks(a1);
+
+  init_pawn_attacks();
+  init_knight_attacks();
+
+  // for (int i=0; i<64; i++) {
+  //   print_board(knight_attacks[i]);
+  //   printf("%d\n", i);  
+  // }
+
   // print_board(white_pawns);
+  // int pos = 0;
+  // for (int row=0;row<8;row++)  {
+  //   for (int col=0;col<8;col++) {
+  //     if (row > 1) {
+  //       set_bit(&white_pawns, pos);
+  //     }
+  //     pos++;
+  //   }
+  // } 
+  // print_board(white_pawns);
+  // printf("%llu\n", white_pawns);
 
 
 
