@@ -4,3 +4,13 @@
 - Bit 0 -> square a1, bit7 -> square h1 ...
 - Each chess piece type in 64 bits -> 12 variables to represent the board (one black and one white for 
 each type)
+
+# Leaping pieces: 
+- Pawn
+- Knight
+- King
+
+# Sliding pieces: 
+- Queen
+- Rook
+- Bishop
