@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
+
 #include "init_attacks.h"
 
 /*
@@ -143,7 +145,6 @@ int fullmove_num = 0; // the number of full moves
 enum { wk = 1, wq = 2, bk = 4, bq = 8 }; // castling
 
 
-
 // convert ASCII character pieces to encoded constants
 int char_pieces[] = {
     ['P'] = P,
@@ -162,6 +163,33 @@ int char_pieces[] = {
 
 // unicode pieces
 char *unicode_pieces[12] = {"♟︎", "♞", "♝", "♜", "♛", "♚", "♙", "♘", "♗", "♖", "♕", "♔",};
+
+const int lsb_64_table[64] =
+{
+   63, 30,  3, 32, 59, 14, 11, 33,
+   60, 24, 50,  9, 55, 19, 21, 34,
+   61, 29,  2, 53, 51, 23, 41, 18,
+   56, 28,  1, 43, 46, 27,  0, 35,
+   62, 31, 58,  4,  5, 49, 54,  6,
+   15, 52, 12, 40,  7, 42, 45, 16,
+   25, 57, 48, 13, 10, 39,  8, 44,
+   20, 47, 38, 22, 17, 37, 36, 26
+};
+
+/**
+ * bitScanForward
+ * @author Matt Taylor (2003)
+ * @param bb bitboard to scan
+ * @precondition bb != 0
+ * @return index (0..63) of least significant one bit
+ */
+int bitScanForward(U64 bb) {
+   unsigned int folded;
+   assert (bb != 0);
+   bb ^= bb - 1;
+   folded = (int) bb ^ (bb >> 32);
+   return lsb_64_table[folded * 0x78291ACF >> 26];
+}
 
 
 void set_bit(U64 *piece, int pos) {
@@ -485,12 +513,20 @@ void init_sliders_attacks(int is_bishop) {
 }
 
 
-// U64 is_square_attacked(U64 occupied, int pos, int color) {
+int is_square_attacked(int pos, int color) {
   
-//   if ((color == white && (pawn_attacks[black][pos]  & bitboards[P]))) // & white pawns
-//   if ((color == black && (pawn_attacks[white][pos]   ))) // & black pawns
+  if ((color == white && (pawn_attacks[black][pos] & bitboards[P]))) return 1; // attacked by white pawns
+  if ((color == black && (pawn_attacks[white][pos] & bitboards[p]))) return 1;// attacked by black pawns
 
-// }
+  if (knight_attacks[pos] & ((color == white) ? bitboards[N] : bitboards[n])) return 1; // attacked by knights
+  if (king_attacks[pos] & ((color == white) ? bitboards[K] : bitboards[k])) return 1; // attacked by kings
+
+  if (get_bishop_attacks(pos, occupancies[both]) & ((color == white) ? bitboards[B] : bitboards[b])) return 1; // attacked by bishops
+  if (get_rook_attacks(pos, occupancies[both]) & ((color == white) ? bitboards[R] : bitboards[r])) return 1; // attacked by rooks
+  if (get_queen_attacks(pos, occupancies[both]) & ((color == white) ? bitboards[Q] : bitboards[q])) return 1; // attacked by rooks
+
+  return 0;
+}
 
 
 void fen_parser(char *fen) {
@@ -525,9 +561,8 @@ void fen_parser(char *fen) {
       pos++;
     } else if (fen[i] >= '0' && fen[i] <= '9') {
                     
-        int offset = fen[i] - '0'; // convert char to int
-        // printf("offset: %d\n", offset);
-        pos += offset;
+      int offset = fen[i] - '0'; // convert char to int
+      pos += offset;
     }       
   }
 
@@ -557,6 +592,25 @@ void fen_parser(char *fen) {
   }
   halfmove_clock = fen[i];
   fullmove_num = fen[i+2];
+
+  occupancies[black] |= bitboards[p];
+  occupancies[black] |= bitboards[k];
+  occupancies[black] |= bitboards[n];
+  occupancies[black] |= bitboards[q];
+  occupancies[black] |= bitboards[b];
+  occupancies[black] |= bitboards[r];
+
+  occupancies[white] |= bitboards[P];
+  occupancies[white] |= bitboards[K];
+  occupancies[white] |= bitboards[N];
+  occupancies[white] |= bitboards[Q];
+  occupancies[white] |= bitboards[B];
+  occupancies[white] |= bitboards[R];
+
+  occupancies[both] |= occupancies[white]; 
+  occupancies[both] |= occupancies[black]; 
+
+
 }
 
 void print_board() {
@@ -565,14 +619,14 @@ void print_board() {
       printf("%d | ", 8 - row);
       for (int col=0;col<8;col++) {
         int pos = row*8+col;
-
         int piece_at_pos = -1;
-        for (int piece=P; piece < k; piece++) {
+        for (int piece=P; piece <= k; piece++) {
           if (check_if_set(bitboards[piece], pos)) {
             piece_at_pos = piece;
             break;
           }
         }
+  
         printf("%s ", (piece_at_pos == -1) ? "." : unicode_pieces[piece_at_pos]);       
       }
 
@@ -580,6 +634,90 @@ void print_board() {
     }
     printf("  +-----------------+\n");
     printf("    a b c d e f g h\n");
+}
+
+void generate_pawn_moves(U64 bitboard, int color) {
+
+  int source_square, target_square;
+  U64 attacks;
+
+  while (bitboard != 0ULL) {
+    
+
+    // init source square
+    source_square = bitScanForward(bitboard);
+                  
+    // init target square
+    target_square = color == white ? source_square - 8 : source_square + 8; // - 8 for white + 8 for black
+    int upper_boundary = color == white ? target_square >= a8 : target_square <= h1; // upper boundary 0 violates rule
+
+    if (upper_boundary && !check_if_set(occupancies[both], target_square)) { // check boundary and no other piece at target
+      
+      if (target_square >= (color == white ? a7 : a2) && target_square <= (color == white ? h7 : h2)) { // pawn upgrade
+        printf("pawn promotion: %s%sq\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+        printf("pawn promotion: %s%sr\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+        printf("pawn promotion: %s%sb\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+        printf("pawn promotion: %s%sn\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else { // not a promotion
+        printf("pawn push: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+
+        // two squares ahead pawn move
+        if ((source_square >= (color == white ? a2 : a7) && source_square <= (color == white ? a7 : h7)) && !check_if_set(occupancies[both], target_square - (color == white ? 8 : -8)))
+            printf("double pawn push: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square - 8]);
+      }     
+    }
+
+    // init pawn attacks bitboard
+  attacks = pawn_attacks[color][source_square] & (color == white ? occupancies[black] : occupancies[white]);
+
+  while (attacks) {
+    target_square = bitScanForward(attacks);
+
+    if (target_square >= (color == white ? a7 : a2) && target_square <= (color == white ? h7 : h2)) { // pawn upgrade
+      printf("pawn promotion capture: %s%sq\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      printf("pawn promotion capture: %s%sr\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      printf("pawn promotion capture: %s%sb\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      printf("pawn promotion capture: %s%sn\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+
+    } else {
+      // one square ahead pawn move
+      printf("pawn capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+    }
+
+    remove_bit(&attacks, target_square);
+  }
+
+  if (enpassant != -1) {
+    U64 enpassant_attacks = pawn_attacks[color][source_square] & (1ULL << enpassant); // CHECK THIS
+
+    // make sure enpassant capture available
+    if (enpassant_attacks) {
+        // init enpassant capture target square
+        int target_enpassant = bitScanForward(enpassant_attacks);
+        printf("pawn enpassant capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_enpassant]);
+    }
+  }
+
+  remove_bit(&bitboard, target_square);
+  }
+
+}
+
+
+void move_generator() {
+
+  U64 bitboard, attacks;
+
+  for (int piece=P; piece <= k; piece++) {
+    bitboard = bitboards[piece]; // copy of the current bitbaord
+
+    if (piece=='P'|| piece == 'p') { // white pawns or black pawns
+      generate_pawn_moves(bitboards[piece], to_move);
+    }
+
+  }
+
+
 }
 
 
@@ -590,15 +728,14 @@ int main(int argc, char *argv[]) {
   U64 white_pawns = 0ULL;
   U64 empty = 0ULL;
 
-
+  print_bitboard(1ULL<<1);
   // init_sliders_attacks(1); // bishop
   // init_sliders_attacks(0); // rook
 
-  // init_leaping_pieces_attacks();
+  init_leaping_pieces_attacks();
   // // init_sliders_attacks();
   
   // set_bit(&white_pawns, b2);
-  // print_bitboard(white_pawns);
   
   
   // set_bit(&empty, a3);
@@ -610,7 +747,20 @@ int main(int argc, char *argv[]) {
 
   fen_parser(tricky_position);
   print_board();
+  // printf("%d\n", bitScanForward(bitboards[N]));
+
   
+  // for (int i=0; i<64; i++) {
+  //   if (check_if_set(occupancies[white], i) && is_square_attacked(i, black)) {
+  //     printf("pos: %d\n", i);
+  //   }
+
+  //   if (check_if_set(occupancies[black], i) && is_square_attacked(i, white)) {
+  //     printf("pos: %d\n", i);
+  //   }
+    
+  // }
+
 
 
   // print_board(white_pawns);
