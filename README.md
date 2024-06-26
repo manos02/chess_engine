@@ -14,3 +14,5 @@ each type)
 - Queen
 - Rook
 - Bishop
+
+TODO: string to board representation, is squared attacked, print attacked square
