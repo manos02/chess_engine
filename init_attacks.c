@@ -126,6 +126,22 @@ U64 king_attacks[64];
 U64 bishop_attacks[64][1024];
 U64 rook_attacks[64][4096];
 
+// side to move
+int to_move;
+
+// enpassant square
+int enpassant = -1; 
+
+// castling rights
+int castle;
+
+int halfmove_clock = 0; // the number of halfmoves sice the last capture or pawn advance used for the fifty rule
+
+int fullmove_num = 0; // the number of full moves 
+
+
+enum { wk = 1, wq = 2, bk = 4, bq = 8 }; // castling
+
 
 
 // convert ASCII character pieces to encoded constants
@@ -479,20 +495,25 @@ void init_sliders_attacks(int is_bishop) {
 
 void fen_parser(char *fen) {
 
+  // reset game state variables
+  to_move = 0; 
+  enpassant = -1;
+  castle = 0;
+
   
   memset(bitboards, 0ULL, sizeof(bitboards)); // initialise bitboards
   memset(occupancies, 0ULL, sizeof(occupancies)); // initialise occupancies
 
   int pos = 0;
+
+  int i=0;
   
-  for (int i = 0; i < strlen(fen); i++) {
+  for (i = 0; i < strlen(fen); i++) {
+
+    if (fen[i] == 32) {
+      break; // space detected
+    }
         
-      // int pos = row*8 + col;
-
-    // printf("pos: %d\n", pos);
-    // printf("%c\n", fen[i]);
-
-
     if ((fen[i] >= 'a' && fen[i] <= 'z') || (fen[i] >= 'A' && fen[i] <= 'Z')) { // check if it is a piece 
         
       // init piece type
@@ -501,29 +522,44 @@ void fen_parser(char *fen) {
       // set piece on corresponding bitboard
       set_bit(&bitboards[piece], pos);
       
-
-    // increment pointer
-      
       pos++;
     } else if (fen[i] >= '0' && fen[i] <= '9') {
-        // for (int bitboard=P; bitboard<k; bitboard++) { // P -> white pawns, k -> black king
-          
-
-          // fen++;
-        // }
+                    
         int offset = fen[i] - '0'; // convert char to int
         // printf("offset: %d\n", offset);
         pos += offset;
-
     }       
-    
   }
-       
+
+  i++;
+  to_move = fen[i] == 'w' ? white : black; // side to move
+
+  while (fen[i] != 32) {
+    if (fen[i] == 'K') {
+      castle |= wk;
+    } else if  (fen[i] == 'Q') {
+      castle |= wq;
+    } else if (fen[i] == 'k') {
+      castle |= bk;
+    } else if (fen[i] == 'q') {
+      castle |= bq;
+    }
+    i++;
+  }
+  i++;
+  
+  if (fen[i] == '-') {
+    enpassant = -1;
+    i+=2;
+  } else {
+    enpassant = (8-(fen[i+1] - '0') * 8) + (fen[i] - 97);
+    i+=3;
+  }
+  halfmove_clock = fen[i];
+  fullmove_num = fen[i+2];
 }
 
 void print_board() {
-
-  
     printf("  +-----------------+\n");
     for (int row=0;row<8;row++)  {
       printf("%d | ", 8 - row);
@@ -534,25 +570,16 @@ void print_board() {
         for (int piece=P; piece < k; piece++) {
           if (check_if_set(bitboards[piece], pos)) {
             piece_at_pos = piece;
-
-            // printf("pos: %d %d\n",pos, piece_at_pos);
-            // print_bitboard(bitboards[piece_at_pos]);
             break;
           }
         }
-        printf("%s ", (piece_at_pos == -1) ? "." : unicode_pieces[piece_at_pos]);
-       
-        // printf("%llu ", index);
+        printf("%s ", (piece_at_pos == -1) ? "." : unicode_pieces[piece_at_pos]);       
       }
 
       printf("| %d\n", 8-row);
     }
     printf("  +-----------------+\n");
     printf("    a b c d e f g h\n");
-  
-
-
-
 }
 
 

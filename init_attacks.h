@@ -16,9 +16,7 @@ enum {
   a1, b1, c1, d1, e1, f1, g1, h1,
 };
 
-enum {
-  white, black
-};
+enum {white, black, both};
 
 enum {
   P, N, B, R, Q, K, p, n, b, r, q, k 
