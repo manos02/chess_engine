@@ -197,7 +197,7 @@ void set_bit(U64 *piece, int pos) {
 }
 
 void remove_bit(U64 *piece, int pos) {
-  if ((*piece) & (1ULL << pos)) // chech if there is a piece to remove
+  if ((*piece) & (1ULL << pos)) // check if there is a piece to remove
   (*piece) = (*piece) ^ (1ULL << pos);
 }
 
@@ -638,17 +638,18 @@ void print_board() {
 
 void generate_pawn_moves(U64 bitboard, int color) {
 
+  
+
   int source_square, target_square;
   U64 attacks;
 
   while (bitboard != 0ULL) {
     
-
     // init source square
     source_square = bitScanForward(bitboard);
                   
     // init target square
-    target_square = color == white ? source_square - 8 : source_square + 8; // - 8 for white + 8 for black
+    target_square = color == white ? (source_square - 8) : (source_square + 8); // - 8 for white + 8 for black
     int upper_boundary = color == white ? target_square >= a8 : target_square <= h1; // upper boundary 0 violates rule
 
     if (upper_boundary && !check_if_set(occupancies[both], target_square)) { // check boundary and no other piece at target
@@ -662,7 +663,9 @@ void generate_pawn_moves(U64 bitboard, int color) {
         printf("pawn push: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
 
         // two squares ahead pawn move
-        if ((source_square >= (color == white ? a2 : a7) && source_square <= (color == white ? a7 : h7)) && !check_if_set(occupancies[both], target_square - (color == white ? 8 : -8)))
+        int double_pawn_target = target_square + (color == white ? -8 : 8);
+    
+        if ((source_square >= (color == white ? a2 : a7) && source_square <= (color == white ? h2 : h7)) && !check_if_set(occupancies[both], double_pawn_target)) 
             printf("double pawn push: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square - 8]);
       }     
     }
@@ -673,7 +676,7 @@ void generate_pawn_moves(U64 bitboard, int color) {
   while (attacks) {
     target_square = bitScanForward(attacks);
 
-    if (target_square >= (color == white ? a7 : a2) && target_square <= (color == white ? h7 : h2)) { // pawn upgrade
+    if (source_square >= (color == white ? h7 : a2) && source_square <= (color == white ? h7 : h2)) { // pawn upgrade
       printf("pawn promotion capture: %s%sq\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
       printf("pawn promotion capture: %s%sr\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
       printf("pawn promotion capture: %s%sb\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
@@ -698,7 +701,38 @@ void generate_pawn_moves(U64 bitboard, int color) {
     }
   }
 
-  remove_bit(&bitboard, target_square);
+  
+  remove_bit(&bitboard, source_square);
+  }
+  printf("\n");
+
+}
+
+void genereate_bishop_moves(U64 bitboard, int color) {
+
+  int source_square, target_square;
+  U64 attacks, target_squares;
+
+  while (bitboard != 0ULL) {
+    source_square = bitScanForward(bitboard);
+
+
+    target_squares = get_bishop_attacks(source_square, occupancies[both]);
+
+    attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
+
+    while (attacks) {
+
+      target_square = bitScanForward(attacks);
+      
+      printf("bishop capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+
+
+      remove_bit(&attacks, target_square);
+    }
+
+    
+    remove_bit(&bitboard, source_square);
   }
 
 }
@@ -710,9 +744,15 @@ void move_generator() {
 
   for (int piece=P; piece <= k; piece++) {
     bitboard = bitboards[piece]; // copy of the current bitbaord
-
-    if (piece=='P'|| piece == 'p') { // white pawns or black pawns
-      generate_pawn_moves(bitboards[piece], to_move);
+    
+    if (piece==P) { // white pawns or black pawns
+      generate_pawn_moves(bitboards[piece], white);
+    } else if (piece==p) {
+      generate_pawn_moves(bitboards[piece], black);
+    } else if (piece==B) {
+      genereate_bishop_moves(bitboards[piece], white);
+    } else if (piece==b) {
+      genereate_bishop_moves(bitboards[piece], black);
     }
 
   }
@@ -728,53 +768,24 @@ int main(int argc, char *argv[]) {
   U64 white_pawns = 0ULL;
   U64 empty = 0ULL;
 
-  print_bitboard(1ULL<<1);
-  // init_sliders_attacks(1); // bishop
-  // init_sliders_attacks(0); // rook
+  set_bit(&empty, a1);
+  print_bitboard(empty);
+  remove_bit(&empty, a1);
+  print_bitboard(empty);
 
+  init_sliders_attacks(1); // bishop
+  init_sliders_attacks(0); // rook
   init_leaping_pieces_attacks();
-  // // init_sliders_attacks();
-  
-  // set_bit(&white_pawns, b2);
-  
-  
-  // set_bit(&empty, a3);
-  // set_bit(&empty, b3);
-  // set_bit(&empty, c3);
-  // set_bit(&empty, a4);
-  // set_bit(&empty, b4);
-  // set_bit(&empty, c4);
 
-  fen_parser(tricky_position);
-  print_board();
-  // printf("%d\n", bitScanForward(bitboards[N]));
-
-  
-  // for (int i=0; i<64; i++) {
-  //   if (check_if_set(occupancies[white], i) && is_square_attacked(i, black)) {
-  //     printf("pos: %d\n", i);
-  //   }
-
-  //   if (check_if_set(occupancies[black], i) && is_square_attacked(i, white)) {
-  //     printf("pos: %d\n", i);
-  //   }
     
-  // }
+  fen_parser(tricky_position);
+
+  move_generator();
+  print_board();
 
 
 
-  // print_board(white_pawns);
-  // int pos = 0;
-  // for (int row=0;row<8;row++)  {
-  //   for (int col=0;col<8;col++) {
-  //     if (row > 1) {
-  //       set_bit(&white_pawns, pos);
-  //     }
-  //     pos++;
-  //   }
-  // } 
-  // print_board(white_pawns);
-  // printf("%llu\n", white_pawns);
+
 
 
 
