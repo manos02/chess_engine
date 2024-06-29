@@ -376,7 +376,6 @@ U64 generate_king_attacks(int pos) {
 U64 get_bishop_attacks(int pos, U64 blockers) {
 
   blockers &= BISHOP_MASKS[pos];
-  print_bitboard(blockers);
   U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
   return bishop_attacks[pos][key];
 }
@@ -400,6 +399,7 @@ U64 get_queen_attacks(int pos, U64 blockers) {
   bishop_blockers &= BISHOP_MASKS[pos];
   U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
   queen_attacks = bishop_attacks[pos][key];
+  // print_bitboard(bishop_attacks[pos][key]);
 
   rook_blockers &= ROOK_MASKS[pos];
   key = (blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
@@ -540,7 +540,6 @@ void init_sliders_attacks(int is_bishop) {
       for (int i=0; i < (1<<relevant_bits); i++) { // 2^relevant_bits blocker boards
         
         U64 blockers = generate_blocker_boards(i, attack_mask);
-        
 
         if (is_bishop) {
           U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
@@ -751,7 +750,6 @@ void genereate_bishop_moves(U64 bitboard, int color) {
   int source_square, target_square;
   U64 attacks, target_squares;
 
-  
   while (bitboard != 0ULL) {
     source_square = bitScanForward(bitboard);
 
@@ -772,7 +770,84 @@ void genereate_bishop_moves(U64 bitboard, int color) {
     }
     remove_bit(&bitboard, source_square);
   }
+}
 
+void generate_rook_moves(U64 bitboard, int color) {
+
+  int source_square, target_square;
+  U64 attacks, target_squares;
+
+  while (bitboard != 0ULL) {
+    source_square = bitScanForward(bitboard);
+
+    // target empty and opposite color squares
+    target_squares = get_rook_attacks(source_square, occupancies[both]) & ((color == white) ? ~occupancies[white] : ~occupancies[black]);
+    attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
+
+    while (target_squares) {
+      target_square = bitScanForward(target_squares);
+      if (check_if_set(attacks, target_square)) {
+        printf("rook capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else {
+        printf("rook move: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      }
+      remove_bit(&target_squares, target_square);
+    }
+
+    remove_bit(&bitboard, source_square);
+  }
+}
+
+void generate_knight_moves(U64 bitboard, int color) {
+  int source_square, target_square;
+  U64 attacks, target_squares;
+
+  while (bitboard != 0ULL) {
+    source_square = bitScanForward(bitboard);
+
+    // target empty and opposite color squares
+    target_squares = knight_attacks[source_square] & ((color == white) ? ~occupancies[white] : ~occupancies[black]);
+    attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
+
+    while (target_squares) {
+      target_square = bitScanForward(target_squares);
+      if (check_if_set(attacks, target_square)) {
+        printf("knight capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else {
+        printf("knight move: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      }
+      remove_bit(&target_squares, target_square);
+    }
+
+    remove_bit(&bitboard, source_square);
+  }
+}
+
+void generate_queen_moves(U64 bitboard, int color) {
+  int source_square, target_square;
+  U64 attacks, target_squares;
+
+  while (bitboard != 0ULL) {
+    source_square = bitScanForward(bitboard);
+
+    // target empty and opposite color squares
+    target_squares = get_queen_attacks(source_square, occupancies[both]);
+    attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
+    print_bitboard(target_squares);
+
+    while (target_squares) {
+      target_square = bitScanForward(target_squares);
+      if (check_if_set(attacks, target_square)) {
+        printf("queen capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else {
+        printf("queen move: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      }
+      remove_bit(&target_squares, target_square);
+    }
+
+    remove_bit(&bitboard, source_square);
+  }
+  
 }
 
 
@@ -790,7 +865,19 @@ void move_generator() {
     } else if (piece==B) {
       genereate_bishop_moves(bitboards[piece], white);
     } else if (piece==b) {
-      genereate_bishop_moves(bitboards[piece], black);
+      // genereate_bishop_moves(bitboards[piece], black);
+    } else if (piece==r) {
+      // generate_rook_moves(bitboards[piece], black);
+    } else if (piece==R) {
+      // generate_rook_moves(bitboards[piece], white);
+    } else if (piece==N) {
+      // generate_knight_moves(bitboards[piece], white);
+    } else if (piece==n) {
+      // generate_knight_moves(bitboards[piece], black);
+    } else if (piece==q) {
+      // generate_queen_moves(bitboards[piece], black);
+    } else if (piece==Q) {
+      // generate_queen_attacks(bitboards[piece], white);
     }
 
   }
