@@ -372,16 +372,13 @@ U64 generate_king_attacks(int pos) {
 }
 
 
-//  block_mask = bitboard containing all squares that can block a piece
-
 
 U64 get_bishop_attacks(int pos, U64 blockers) {
+
   blockers &= BISHOP_MASKS[pos];
-
+  print_bitboard(blockers);
   U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
-
   return bishop_attacks[pos][key];
-
 }
 
 
@@ -389,7 +386,6 @@ U64 get_rook_attacks(int pos, U64 blockers) {
 
   blockers &= ROOK_MASKS[pos];
   U64 key = (blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
-
   return rook_attacks[pos][key];
 }
 
@@ -418,7 +414,7 @@ U64 generate_rook_legal_bitboard(U64 blockers, int col, int row) {
 
   U64 attack_board = 0ULL;
 
-  for (int temp_col = col + 1; temp_col < 7; temp_col++)  {
+  for (int temp_col = col + 1; temp_col <= 7; temp_col++)  {
     int current = row * 8 + temp_col;
     set_bit((&attack_board), current);
     if (check_if_set(blockers,  current)) {
@@ -426,7 +422,7 @@ U64 generate_rook_legal_bitboard(U64 blockers, int col, int row) {
     }
   }
 
-  for (int temp_col = col - 1; temp_col > 0; temp_col--)  {
+  for (int temp_col = col - 1; temp_col >= 0; temp_col--)  {
     int current = row * 8 + temp_col;
     set_bit((&attack_board), current);
     if (check_if_set(blockers,  current)) {
@@ -434,7 +430,7 @@ U64 generate_rook_legal_bitboard(U64 blockers, int col, int row) {
     }
   }
 
-  for (int temp_row = row + 1; temp_row < 7; temp_row++)  {
+  for (int temp_row = row + 1; temp_row <= 7; temp_row++)  {
     int current = temp_row * 8 + col;
     set_bit((&attack_board), current);
     if (check_if_set(blockers,  current)) {
@@ -442,7 +438,7 @@ U64 generate_rook_legal_bitboard(U64 blockers, int col, int row) {
     }
   }
 
-  for (int temp_row = row - 1; temp_row > 0; temp_row--)  {
+  for (int temp_row = row - 1; temp_row >= 0; temp_row--)  {
     int current = temp_row * 8 + col;
     set_bit((&attack_board), current);
     if (check_if_set(blockers,  current)) {  
@@ -459,15 +455,61 @@ U64 generate_bishop_legal_bitboard(U64 blockers, int col, int row) {
 
   U64 attack_board = 0ULL;
 
-  int temp_col = col + 1;
-  int temp_row = row + 1;
-  while (temp_row < 7 && temp_col < 7) {
-    set_bit((&attack_board), temp_row * 8 + temp_col);
+  int temp_col, temp_row, current;
+
+  temp_col = col + 1;
+  temp_row = row + 1;
+  while (temp_row <= 7 && temp_col <= 7) {
+    current = temp_row * 8 + temp_col;
+    set_bit((&attack_board), current);
+    if (check_if_set(blockers, current)) {
+      break;
+    }
     temp_col++;
     temp_row++;
   }
+
+  temp_col = col - 1;
+  temp_row = row - 1;
+  while (temp_row >= 0 && temp_col >= 0) {
+    current = temp_row * 8 + temp_col;
+    set_bit((&attack_board), current);
+    if (check_if_set(blockers, current)) {
+      break;
+    }
+    temp_col--;
+    temp_row--;
+  }
+
+
+  temp_col = col + 1;
+  temp_row = row - 1;
+  while (temp_row >= 0 && temp_col <= 7) {
+    current = temp_row * 8 + temp_col;
+    set_bit((&attack_board), temp_row * 8 + temp_col);
+    if (check_if_set(blockers, current)) {
+      break;
+    }
+    temp_col++;
+    temp_row--;
+  }
+
+  temp_col = col - 1;
+  temp_row = row + 1;
+  while (temp_row <= 7 && temp_col >= 0) {
+    current = temp_row * 8 + temp_col;
+    set_bit((&attack_board), temp_row * 8 + temp_col);
+    if (check_if_set(blockers, current)) {
+      break;
+    }
+    temp_col--;
+    temp_row++;
+  }
+
   return attack_board;
 }
+
+
 
 void init_leaping_pieces_attacks() {
   for (int i=0; i<64; i++) {
@@ -487,22 +529,23 @@ void init_sliders_attacks(int is_bishop) {
     for (int col=0; col<8; col++) {
       int pos = row * 8 + col;
 
-
       BISHOP_MASKS[pos] = mask_bishop(col, row);
       ROOK_MASKS[pos] = mask_rook(col, row);  
       QUEEN_MASKS[pos] = ROOK_MASKS[pos] | BISHOP_MASKS[pos];
 
-      U64 attack_mask = is_bishop == 1 ? ROOK_MASKS[pos] : BISHOP_MASKS[pos];
-      int relevant_bits = is_bishop == 1 ? ROOK_INDEX_BITS[pos] : BISHOP_INDEX_BITS[pos];
+      U64 attack_mask = is_bishop == 1 ? BISHOP_MASKS[pos] : ROOK_MASKS[pos];
+      int relevant_bits = is_bishop == 1 ? BISHOP_INDEX_BITS[pos] : ROOK_INDEX_BITS[pos];
     
       
       for (int i=0; i < (1<<relevant_bits); i++) { // 2^relevant_bits blocker boards
         
         U64 blockers = generate_blocker_boards(i, attack_mask);
         
+
         if (is_bishop) {
-          U64 key = (blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
+          U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
           bishop_attacks[pos][key] = generate_bishop_legal_bitboard(blockers, col, row);
+      
         } else {
           U64 key = (blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
           rook_attacks[pos][key] = generate_rook_legal_bitboard(blockers, col, row);
@@ -609,8 +652,6 @@ void fen_parser(char *fen) {
 
   occupancies[both] |= occupancies[white]; 
   occupancies[both] |= occupancies[black]; 
-
-
 }
 
 void print_board() {
@@ -637,8 +678,6 @@ void print_board() {
 }
 
 void generate_pawn_moves(U64 bitboard, int color) {
-
-  
 
   int source_square, target_square;
   U64 attacks;
@@ -701,7 +740,6 @@ void generate_pawn_moves(U64 bitboard, int color) {
     }
   }
 
-  
   remove_bit(&bitboard, source_square);
   }
   printf("\n");
@@ -713,25 +751,25 @@ void genereate_bishop_moves(U64 bitboard, int color) {
   int source_square, target_square;
   U64 attacks, target_squares;
 
+  
   while (bitboard != 0ULL) {
     source_square = bitScanForward(bitboard);
 
-
-    target_squares = get_bishop_attacks(source_square, occupancies[both]);
-
+    // target empty and opposite colour squares
+    target_squares = get_bishop_attacks(source_square, occupancies[both]) & ((color == white) ? ~occupancies[white] : ~occupancies[black]);
     attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
 
-    while (attacks) {
+    while (target_squares) {
 
-      target_square = bitScanForward(attacks);
-      
-      printf("bishop capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      target_square = bitScanForward(target_squares);
+      if (check_if_set(attacks, target_square)) {
+        printf("bishop capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else {
+        printf("bishop move: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      }
 
-
-      remove_bit(&attacks, target_square);
+      remove_bit(&target_squares, target_square);
     }
-
-    
     remove_bit(&bitboard, source_square);
   }
 
@@ -746,9 +784,9 @@ void move_generator() {
     bitboard = bitboards[piece]; // copy of the current bitbaord
     
     if (piece==P) { // white pawns or black pawns
-      generate_pawn_moves(bitboards[piece], white);
+      // generate_pawn_moves(bitboards[piece], white);
     } else if (piece==p) {
-      generate_pawn_moves(bitboards[piece], black);
+      // generate_pawn_moves(bitboards[piece], black);
     } else if (piece==B) {
       genereate_bishop_moves(bitboards[piece], white);
     } else if (piece==b) {
@@ -768,11 +806,8 @@ int main(int argc, char *argv[]) {
   U64 white_pawns = 0ULL;
   U64 empty = 0ULL;
 
-  set_bit(&empty, a1);
-  print_bitboard(empty);
-  remove_bit(&empty, a1);
-  print_bitboard(empty);
-
+  
+  
   init_sliders_attacks(1); // bishop
   init_sliders_attacks(0); // rook
   init_leaping_pieces_attacks();
