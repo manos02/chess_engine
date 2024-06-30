@@ -610,6 +610,8 @@ void fen_parser(char *fen) {
   i++;
   to_move = fen[i] == 'w' ? white : black; // side to move
 
+  i+=2;
+  
   while (fen[i] != 32) {
     if (fen[i] == 'K') {
       castle |= wk;
@@ -623,6 +625,7 @@ void fen_parser(char *fen) {
     i++;
   }
   i++;
+
   
   if (fen[i] == '-') {
     enpassant = -1;
@@ -631,6 +634,8 @@ void fen_parser(char *fen) {
     enpassant = (8-(fen[i+1] - '0') * 8) + (fen[i] - 97);
     i+=3;
   }
+
+
   halfmove_clock = fen[i];
   fullmove_num = fen[i+2];
 
@@ -920,25 +925,25 @@ void move_generator() {
     } else if (piece==p) {
       generate_pawn_moves(bitboards[piece], black);
     } else if (piece==B) {
-      genereate_bishop_moves(bitboards[piece], white);
+      // genereate_bishop_moves(bitboards[piece], white);
     } else if (piece==b) {
-      genereate_bishop_moves(bitboards[piece], black);
+      // genereate_bishop_moves(bitboards[piece], black);
     } else if (piece==r) {
-      generate_rook_moves(bitboards[piece], black);
+      // generate_rook_moves(bitboards[piece], black);
     } else if (piece==R) {
-      generate_rook_moves(bitboards[piece], white);
+      // generate_rook_moves(bitboards[piece], white);
     } else if (piece==N) {
-      generate_knight_moves(bitboards[piece], white);
+      // generate_knight_moves(bitboards[piece], white);
     } else if (piece==n) {
-      generate_knight_moves(bitboards[piece], black);
+      // generate_knight_moves(bitboards[piece], black);
     } else if (piece==q) {
-      generate_queen_moves(bitboards[piece], black);
+      // generate_queen_moves(bitboards[piece], black);
     } else if (piece==Q) {
-      generate_queen_moves(bitboards[piece], white);
+      // generate_queen_moves(bitboards[piece], white);
     } else if (piece==K) {
-      generate_king_moves(bitboards[piece], white);
+      // generate_king_moves(bitboards[piece], white);
     } else if (piece==k) {
-      generate_king_moves(bitboards[piece], black);
+      // generate_king_moves(bitboards[piece], black);
     }
 
   }
