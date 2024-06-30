@@ -4,7 +4,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
-
 #include "init_attacks.h"
 
 /*
@@ -397,14 +396,14 @@ U64 get_queen_attacks(int pos, U64 blockers) {
   U64 rook_blockers = blockers;
 
   bishop_blockers &= BISHOP_MASKS[pos];
-  U64 key = (blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
+  
+  U64 key = (bishop_blockers * BISHOP_MAGICS[pos]) >> (64 - BISHOP_INDEX_BITS[pos]);
   queen_attacks = bishop_attacks[pos][key];
-  // print_bitboard(bishop_attacks[pos][key]);
-
+  
   rook_blockers &= ROOK_MASKS[pos];
-  key = (blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
+  key = (rook_blockers * ROOK_MAGICS[pos]) >> (64 - ROOK_INDEX_BITS[pos]);
   queen_attacks |= rook_attacks[pos][key];
-
+  
   return queen_attacks;
 }
 
@@ -486,7 +485,7 @@ U64 generate_bishop_legal_bitboard(U64 blockers, int col, int row) {
   temp_row = row - 1;
   while (temp_row >= 0 && temp_col <= 7) {
     current = temp_row * 8 + temp_col;
-    set_bit((&attack_board), temp_row * 8 + temp_col);
+    set_bit((&attack_board), current);
     if (check_if_set(blockers, current)) {
       break;
     }
@@ -498,7 +497,7 @@ U64 generate_bishop_legal_bitboard(U64 blockers, int col, int row) {
   temp_row = row + 1;
   while (temp_row <= 7 && temp_col >= 0) {
     current = temp_row * 8 + temp_col;
-    set_bit((&attack_board), temp_row * 8 + temp_col);
+    set_bit((&attack_board), current);
     if (check_if_set(blockers, current)) {
       break;
     }
@@ -729,7 +728,7 @@ void generate_pawn_moves(U64 bitboard, int color) {
   }
 
   if (enpassant != -1) {
-    U64 enpassant_attacks = pawn_attacks[color][source_square] & (1ULL << enpassant); // CHECK THIS
+    U64 enpassant_attacks = pawn_attacks[color][source_square] & (1ULL << enpassant); 
 
     // make sure enpassant capture available
     if (enpassant_attacks) {
@@ -831,9 +830,9 @@ void generate_queen_moves(U64 bitboard, int color) {
     source_square = bitScanForward(bitboard);
 
     // target empty and opposite color squares
-    target_squares = get_queen_attacks(source_square, occupancies[both]);
+    target_squares = get_queen_attacks(source_square, occupancies[both]) & ((color == white) ? ~occupancies[white] : ~occupancies[black]);
     attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
-    print_bitboard(target_squares);
+    
 
     while (target_squares) {
       target_square = bitScanForward(target_squares);
@@ -847,7 +846,65 @@ void generate_queen_moves(U64 bitboard, int color) {
 
     remove_bit(&bitboard, source_square);
   }
-  
+}
+
+void generate_king_moves(U64 bitboard, int color) {
+
+  int source_square, target_square;
+  U64 attacks, target_squares;
+
+  if ((castle & wk) && color == white) { // king side castling
+    if (!check_if_set(occupancies[both], f1) && !check_if_set(occupancies[both], g1)) { // squares between rook and king are not occupied
+      // make sure king and the f1 squares are not under attacks
+      if (!is_square_attacked(e1, black) && !is_square_attacked(f1, black))
+        printf("e1g1  castling move\n");
+    }
+  }
+
+  if ((castle & wq) && color == white) { // queen side castling
+    if (!check_if_set(occupancies[both], d1) && !check_if_set(occupancies[both], c1) && !check_if_set(occupancies[both], b1)) { // squares between rook and king are not occupied
+      // make sure king and the f8 squares are not under attacks
+      if (!is_square_attacked(e1, black) && !is_square_attacked(d1, black))
+        printf("e1c1  castling move\n");
+    }
+  }
+
+  if ((castle & bk) && color == black) { // king side castling
+    if (!check_if_set(occupancies[both], f8) && !check_if_set(occupancies[both], g8)) { // squares between rook and king are not occupied
+      // make sure king and the f8 squares are not under attacks
+      if (!is_square_attacked(e8, black) && !is_square_attacked(f8, black))
+        printf("e8g8  castling move\n");
+    }
+  }
+
+  if ((castle & bq) && color == black) { // queen side castling
+    if (!check_if_set(occupancies[both], f8) && !check_if_set(occupancies[both], g8)) { // squares between rook and king are not occupied
+      // make sure king and the f8 squares are not under attacks
+      if (!is_square_attacked(e8, black) && !is_square_attacked(d8, black))
+        printf("e8c8  castling move\n");
+    }
+  }
+ 
+  while (bitboard != 0ULL) {
+    source_square = bitScanForward(bitboard);
+    target_squares = king_attacks[source_square] & ((color == white) ? ~occupancies[white] : ~occupancies[black]);
+    attacks = target_squares & (color == white ? occupancies[black] : occupancies[white]);
+
+    while (target_squares) {
+      target_square = bitScanForward(target_squares);
+      if (check_if_set(attacks, target_square)) {
+        printf("king capture: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      } else {
+        printf("king move: %s%s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
+      }
+      remove_bit(&target_squares, target_square);
+    }
+
+    remove_bit(&bitboard, source_square);
+
+  }
+
+
 }
 
 
@@ -859,30 +916,32 @@ void move_generator() {
     bitboard = bitboards[piece]; // copy of the current bitbaord
     
     if (piece==P) { // white pawns or black pawns
-      // generate_pawn_moves(bitboards[piece], white);
+      generate_pawn_moves(bitboards[piece], white);
     } else if (piece==p) {
-      // generate_pawn_moves(bitboards[piece], black);
+      generate_pawn_moves(bitboards[piece], black);
     } else if (piece==B) {
       genereate_bishop_moves(bitboards[piece], white);
     } else if (piece==b) {
-      // genereate_bishop_moves(bitboards[piece], black);
+      genereate_bishop_moves(bitboards[piece], black);
     } else if (piece==r) {
-      // generate_rook_moves(bitboards[piece], black);
+      generate_rook_moves(bitboards[piece], black);
     } else if (piece==R) {
-      // generate_rook_moves(bitboards[piece], white);
+      generate_rook_moves(bitboards[piece], white);
     } else if (piece==N) {
-      // generate_knight_moves(bitboards[piece], white);
+      generate_knight_moves(bitboards[piece], white);
     } else if (piece==n) {
-      // generate_knight_moves(bitboards[piece], black);
+      generate_knight_moves(bitboards[piece], black);
     } else if (piece==q) {
-      // generate_queen_moves(bitboards[piece], black);
+      generate_queen_moves(bitboards[piece], black);
     } else if (piece==Q) {
-      // generate_queen_attacks(bitboards[piece], white);
+      generate_queen_moves(bitboards[piece], white);
+    } else if (piece==K) {
+      generate_king_moves(bitboards[piece], white);
+    } else if (piece==k) {
+      generate_king_moves(bitboards[piece], black);
     }
 
   }
-
-
 }
 
 
@@ -900,7 +959,7 @@ int main(int argc, char *argv[]) {
   init_leaping_pieces_attacks();
 
     
-  fen_parser(tricky_position);
+  fen_parser(start_position);
 
   move_generator();
   print_board();
