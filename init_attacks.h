@@ -29,8 +29,9 @@ const char *square_to_coordinates[] = {
 };
 
 enum {white, black, both};
-
 enum {P, N, B, R, Q, K, p, n, b, r, q, k};
+
+enum {quiet, promoted, capture, doubl, en, castling}; // flags
 
 // magic numbers
 const U64 ROOK_MAGICS[64] = {
@@ -105,8 +106,6 @@ const U64 row_5 = 4278190080ULL;
 
 void init_sliders_attacks(int is_bishop);
 void init_leaping_pieces_attacks();
-
-
 
 
 

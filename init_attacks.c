@@ -678,6 +678,19 @@ void print_board() {
     }
     printf("  +-----------------+\n");
     printf("    a b c d e f g h\n");
+
+    // print side to move
+    printf("     Side:     %s\n", !to_move ? "white" : "black");
+    
+    // print enpassant square
+    printf("     Enpassant:   %s\n", (enpassant != -1) ? square_to_coordinates[enpassant] : "no");
+    
+    // print castling rights
+    printf("     Castling:  %c%c%c%c\n\n", (castle & wk) ? 'K' : '-',
+                                           (castle & wq) ? 'Q' : '-',
+                                           (castle & bk) ? 'k' : '-',
+                                           (castle & bq) ? 'q' : '-');
+    
 }
 
 void generate_pawn_moves(U64 bitboard, int color) {
@@ -909,7 +922,6 @@ void generate_king_moves(U64 bitboard, int color) {
 
   }
 
-
 }
 
 
@@ -925,29 +937,111 @@ void move_generator() {
     } else if (piece==p) {
       generate_pawn_moves(bitboards[piece], black);
     } else if (piece==B) {
-      // genereate_bishop_moves(bitboards[piece], white);
+      genereate_bishop_moves(bitboards[piece], white);
     } else if (piece==b) {
-      // genereate_bishop_moves(bitboards[piece], black);
+      genereate_bishop_moves(bitboards[piece], black);
     } else if (piece==r) {
-      // generate_rook_moves(bitboards[piece], black);
+      generate_rook_moves(bitboards[piece], black);
     } else if (piece==R) {
-      // generate_rook_moves(bitboards[piece], white);
+      generate_rook_moves(bitboards[piece], white);
     } else if (piece==N) {
-      // generate_knight_moves(bitboards[piece], white);
+      generate_knight_moves(bitboards[piece], white);
     } else if (piece==n) {
-      // generate_knight_moves(bitboards[piece], black);
+      generate_knight_moves(bitboards[piece], black);
     } else if (piece==q) {
-      // generate_queen_moves(bitboards[piece], black);
+      generate_queen_moves(bitboards[piece], black);
     } else if (piece==Q) {
-      // generate_queen_moves(bitboards[piece], white);
+      generate_queen_moves(bitboards[piece], white);
     } else if (piece==K) {
-      // generate_king_moves(bitboards[piece], white);
+      generate_king_moves(bitboards[piece], white);
     } else if (piece==k) {
-      // generate_king_moves(bitboards[piece], black);
+      generate_king_moves(bitboards[piece], black);
     }
 
   }
 }
+
+
+/*
+          binary move bits                               hexidecimal constants
+    
+    0000 0000 0000 0000 0011 1111    source square       0x3f
+    0000 0000 0000 1111 1100 0000    target square       0xfc0
+    0000 0000 1111 0000 0000 0000    piece               0xf000
+    0000 1111 0000 0000 0000 0000    promoted piece      0xf0000
+    0001 0000 0000 0000 0000 0000    capture flag        0x100000
+    0010 0000 0000 0000 0000 0000    double push flag    0x200000
+    0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
+    1000 0000 0000 0000 0000 0000    castling flag       0x800000
+*/
+
+
+U64 encode_move(int source, int target, int piece, int promoted, int type) {
+
+  U64 move = 0ULL;
+
+  move |= source;
+  move |= (target << 6);
+  move |= (piece << 12);
+  move |= (promoted << 16);
+  
+
+  if (type==capture) {
+    move |= (1 << 20);
+  } else if (type==doubl) {
+    move |= (1 << 21);
+  } else if (type==en) {
+    move |= (1 << 22);
+  } else if (type==castling) {
+    move |= (1 << 23);
+  }
+
+  return move;
+}
+
+int decode_source_square(U64 move) {
+  int source = move & 0x3f;
+  return source;
+}
+
+int decode_target_square(U64 move) {
+  int target = (move & 0xfc0) >> 6;
+  return target;
+}
+
+int decode_piece(U64 move) {
+  int piece = (move & 0xf000) >> 12;
+  return piece;
+}
+
+int decode_promoted_piece(U64 move) {
+  int promoted_piece = (move & 0xf0000) >> 16;
+  return promoted_piece;
+}
+
+int decode_capture_flag(U64 move) {
+  int capture_flag = (move & 0x100000) >> 20;
+  return capture_flag;
+}
+
+int decode_dp_flag(U64 move) {
+  int dp_flag = (move & 0x200000) >> 21;
+  return dp_flag;
+}
+
+int decode_enpassant_flag(U64 move) {
+  int enpassant_flag = (move & 0x400000) >> 22;
+  return enpassant_flag;
+}
+
+int decode_castling_flag(U64 move) {
+  print_bitboard(move);
+  int castling_flag = (move & 0x800000);
+  printf("castling: %d\n", castling_flag);
+  return (castling_flag ? 1 : 0);
+}
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -965,12 +1059,19 @@ int main(int argc, char *argv[]) {
 
     
   fen_parser(start_position);
+  
 
-  move_generator();
+  // move_generator();
   print_board();
 
+  U64 move = encode_move(e2, e4, P, Q,  capture);
 
-
+  printf("%s\n", unicode_pieces[decode_piece(move)]);
+  printf("%s\n", unicode_pieces[decode_promoted_piece(move)]);
+  printf("%d\n", decode_castling_flag(move));
+  printf("%d\n", decode_enpassant_flag(move));
+  printf("%d\n", decode_dp_flag(move));
+  printf("%d\n", decode_capture_flag(move));
 
 
 
