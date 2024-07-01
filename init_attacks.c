@@ -131,7 +131,7 @@ U64 rook_attacks[64][4096];
 int to_move;
 
 // enpassant square
-int enpassant = -1; 
+int enpassant; 
 
 // castling rights
 int castle;
@@ -217,16 +217,6 @@ int check_if_set(U64 board, int pos) {
   }
   return 0;
 }
-
-// // count the number of bits that are 1
-// int count_bits(U64 board) {
-//   U64 count = 0;
-//   while(board) {
-//     count += board & 1;
-//     board >>= 1;
-//   }
-//   return count;
-// }
 
 
 
@@ -642,7 +632,8 @@ void fen_parser(char *fen) {
     enpassant = -1;
     i+=2;
   } else {
-    enpassant = (8-(fen[i+1] - '0') * 8) + (fen[i] - 97);
+    enpassant = (8-(fen[i+1] - '0'))*8 + (fen[i] - 97);
+    printf("%d\n", enpassant);
     i+=3;
   }
 
@@ -831,7 +822,7 @@ void generate_pawn_moves(U64 bitboard, int color, MoveList *move_list) {
     int upper_boundary = color == white ? target_square >= a8 : target_square <= h1; // upper boundary 0 violates rule
 
     if (upper_boundary && !check_if_set(occupancies[both], target_square)) { // check boundary and no other piece at target
-      if (target_square >= (color == white ? a7 : a2) && target_square <= (color == white ? h7 : h2)) { // pawn upgrade
+      if (source_square >= (color == white ? a7 : a2) && source_square <= (color == white ? h7 : h2)) { // pawn upgrade
         add_move(move_list, encode_move(source_square, target_square, piece, (color==white? Q : q), 0, 0, 0, 0));
         add_move(move_list, encode_move(source_square, target_square, piece, (color==white? N : n), 0, 0, 0, 0));
         add_move(move_list, encode_move(source_square, target_square, piece, (color==white? B : b), 0, 0, 0, 0));
@@ -843,7 +834,7 @@ void generate_pawn_moves(U64 bitboard, int color, MoveList *move_list) {
         int double_pawn_target = target_square + (color == white ? -8 : 8);
     
         if ((source_square >= (color == white ? a2 : a7) && source_square <= (color == white ? h2 : h7)) && !check_if_set(occupancies[both], double_pawn_target)) 
-          add_move(move_list, encode_move(source_square, (color == white ? double_pawn_target : double_pawn_target), piece, 0, 0, 0, 1, 0));
+          add_move(move_list, encode_move(source_square, double_pawn_target, piece, 0, 0, 1, 0, 0));
       }     
     }
 
@@ -1017,7 +1008,6 @@ void generate_king_moves(U64 bitboard, int color, MoveList *move_list) {
   }
 
   if ((castle & bk) && color == black) { // king side castling
-    printf("YES");
     if (!check_if_set(occupancies[both], f8) && !check_if_set(occupancies[both], g8)) { // squares between rook and king are not occupied
       // make sure king and the f8 squares are not under attacks
       if (!is_square_attacked(e8, white) && !is_square_attacked(f8, white))
@@ -1101,10 +1091,9 @@ int main(int argc, char *argv[]) {
   init_leaping_pieces_attacks();
 
     
-  // fen_parser(tricky_position);
-  fen_parser("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1 ");
+  fen_parser(tricky_position);
+  // fen_parser("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPpP/R3K2R b KQkq a3 0 1 ");
   
-  printf("%d\n", to_move);
 
   move_generator(&move_list);
   print_board();
