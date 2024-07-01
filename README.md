@@ -15,4 +15,4 @@ each type)
 - Rook
 - Bishop
 
-TODO: string to board representation, is squared attacked, print attacked square
+TODO: make move list as struct, add moves from move generator function, testing

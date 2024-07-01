@@ -140,6 +140,8 @@ int halfmove_clock = 0; // the number of halfmoves sice the last capture or pawn
 
 int fullmove_num = 0; // the number of full moves 
 
+int move_count = 0; 
+
 
 enum { wk = 1, wq = 2, bk = 4, bq = 8 }; // castling
 
@@ -158,6 +160,18 @@ int char_pieces[] = {
     ['r'] = r,
     ['q'] = q,
     ['k'] = k
+};
+
+// promoted pieces
+char promoted_pieces[] = {
+    [Q] = 'q',
+    [R] = 'r',
+    [B] = 'b',
+    [N] = 'n',
+    [q] = 'q',
+    [r] = 'r',
+    [b] = 'b',
+    [n] = 'n'
 };
 
 // unicode pieces
@@ -1035,14 +1049,42 @@ int decode_enpassant_flag(U64 move) {
 }
 
 int decode_castling_flag(U64 move) {
-  print_bitboard(move);
-  int castling_flag = (move & 0x800000);
-  printf("castling: %d\n", castling_flag);
-  return (castling_flag ? 1 : 0);
+  int castling_flag = (move & 0x800000) >> 23;
+  return castling_flag;
 }
 
 
+void add_move(U64 *moves, U64 move) {
+  moves[move_count] = move;
+  move_count++;
+}
 
+void print_move_list(U64 *move_list) {
+
+  if (move_count==0) {
+    printf("\n     No move in the move list!\n");
+    return;
+  }
+
+  printf("\n     move    piece     capture   double    enpass    castling\n\n");
+  
+  for (int i=0; i < move_count; i++) {
+
+    U64 move = move_list[i]; // get move
+    
+
+    printf("     %s%s%c      %s         %d         %d         %d         %d\n", square_to_coordinates[decode_source_square(move)],
+                                                                                  square_to_coordinates[decode_target_square(move)],
+                                                                                  decode_promoted_piece(move) ? promoted_pieces[decode_promoted_piece(move)] : ' ',
+                                                                                  unicode_pieces[decode_piece(move)],
+                                                                                  decode_capture_flag(move),
+                                                                                  decode_dp_flag(move),
+                                                                                  decode_enpassant_flag(move),
+                                                                                  decode_castling_flag(move));
+  }
+
+  printf("\n\n     Total number of moves: %d\n\n", move_count);
+}
 
 int main(int argc, char *argv[]) {
 
@@ -1050,8 +1092,11 @@ int main(int argc, char *argv[]) {
 
   U64 white_pawns = 0ULL;
   U64 empty = 0ULL;
-
   
+
+  U64 moves[254];
+
+
   
   init_sliders_attacks(1); // bishop
   init_sliders_attacks(0); // rook
@@ -1064,14 +1109,17 @@ int main(int argc, char *argv[]) {
   // move_generator();
   print_board();
 
-  U64 move = encode_move(e2, e4, P, Q,  capture);
+  U64 move = encode_move(e2, e4, P, Q, capture);
 
-  printf("%s\n", unicode_pieces[decode_piece(move)]);
-  printf("%s\n", unicode_pieces[decode_promoted_piece(move)]);
-  printf("%d\n", decode_castling_flag(move));
-  printf("%d\n", decode_enpassant_flag(move));
-  printf("%d\n", decode_dp_flag(move));
-  printf("%d\n", decode_capture_flag(move));
+  // printf("%s\n", unicode_pieces[decode_piece(move)]);
+  // printf("%s\n", unicode_pieces[decode_promoted_piece(move)]);
+  // printf("%d\n", decode_castling_flag(move));
+  // printf("%d\n", decode_enpassant_flag(move));
+  // printf("%d\n", decode_dp_flag(move));
+  // printf("%d\n", decode_capture_flag(move));
+
+  add_move(moves, move);
+  print_move_list(moves);
 
 
 
