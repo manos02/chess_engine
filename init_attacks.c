@@ -806,6 +806,62 @@ void print_move_list(MoveList move_list) {
 }
 
 
+// preserve board state
+#define copy_board()                                                            \
+    U64 bitboards_copy[12], occupancies_copy[3];                                \
+    int to_move_copy, enpassant_copy, castle_copy;                                   \
+    memcpy(bitboards_copy, bitboards, 96);                                      \
+    memcpy(occupancies_copy, occupancies, 24);                                  \
+    to_move_copy = to_move, enpassant_copy = enpassant, castle_copy = castle;   \
+
+// restore board state
+#define take_back()                                                             \
+    memcpy(bitboards, bitboards_copy, 96);                                      \
+    memcpy(occupancies, occupancies_copy, 24);                                  \
+    to_move = to_move_copy, enpassant = enpassant_copy, castle = castle_copy;   \
+
+
+enum {all_moves, capture_moves};
+
+void make_move(U64 move, int move_flag) {
+
+
+  if (move_flag==all_moves) { // quiet moves
+
+      int source_square = decode_source_square(move);
+      int target_square = decode_target_square(move);
+      int piece = decode_piece(move);
+      int promoted_piece = decode_promoted_piece(move);
+      int capture = decode_capture_flag(move);
+      int double_push = decode_dp_flag(move);
+      int enpass = decode_enpassant_flag(move);
+      int castling = decode_castling_flag(move);
+
+      if (capture) { // capture move
+        for (int piece=P; piece <= k; piece++) {
+          if (check_if_set(bitboards[piece], target_square)) { // find the correct piece
+            remove_bit(&bitboards[piece], target_square);
+            break;
+          }
+        }
+      }
+      
+      remove_bit(&bitboards[piece], source_square); // remove source piece from bitboard
+
+      if (promoted_piece) {
+        set_bit(&bitboards[promoted_piece], target_square); // move piece to target square and change it to promoted piece
+        return;
+      }
+
+      set_bit(&bitboards[piece], target_square); // move piece to target square
+
+      
+
+  }
+
+
+}
+
 void generate_pawn_moves(U64 bitboard, int color, MoveList *move_list) {
 
   int source_square, target_square;
@@ -1054,8 +1110,6 @@ void move_generator(MoveList *move_list) {
 
   
   for (int piece=P; piece <= K; piece++) {
-    // bitboard = bitboards[piece]; // copy of the current bitbaord
-
     
     if (piece==P || piece==p) { // white or black pawns
       to_move==white ? generate_pawn_moves(bitboards[P], white, move_list) : generate_pawn_moves(bitboards[p], black, move_list);
@@ -1091,8 +1145,8 @@ int main(int argc, char *argv[]) {
   init_leaping_pieces_attacks();
 
     
-  fen_parser(tricky_position);
-  // fen_parser("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPpP/R3K2R b KQkq a3 0 1 ");
+  // fen_parser(tricky_position);
+  fen_parser("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPpP/R3K2R b KQkq a3 0 1 ");
   
 
   move_generator(&move_list);
@@ -1100,6 +1154,25 @@ int main(int argc, char *argv[]) {
 
 
   print_move_list(move_list);
+
+  // loop over generated moves
+  for (int move_count = 0; move_count < move_list.move_count; move_count++) {
+      // init move
+      int move = move_list.moves[move_count];
+      
+      // preserve board state
+      copy_board();
+      
+      // make move
+      make_move(move, all_moves);
+      print_board();
+      getchar();
+      
+      // take back
+      take_back();
+      print_board();
+      getchar();
+  }
 
 
 
