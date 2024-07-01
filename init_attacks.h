@@ -31,7 +31,7 @@ const char *square_to_coordinates[] = {
 enum {white, black, both};
 enum {P, N, B, R, Q, K, p, n, b, r, q, k};
 
-enum {quiet, promoted, capture, doubl, en, castling}; // flags
+
 
 // magic numbers
 const U64 ROOK_MAGICS[64] = {
@@ -88,6 +88,11 @@ const int BISHOP_INDEX_BITS[64] = {
   5, 5, 5, 5, 5, 5, 5, 5,
   6, 5, 5, 5, 5, 5, 5, 6
 };
+
+typedef struct MoveList {
+  int move_count;
+  U64 moves[254];
+} MoveList;
 
 
 // rows and cols
