@@ -23,7 +23,7 @@ enum {all_moves, capture_moves};
 
 typedef struct MoveList {
   int move_count;
-  U64 moves[254];
+  int moves[254];
 } MoveList;
 
 // piece bitboards

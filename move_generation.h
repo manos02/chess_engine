@@ -20,7 +20,7 @@
 
 void move_generator(MoveList *move_list);
 void set_bit(U64 *piece, int pos);
-int make_move(U64 move, int move_flag);
+int make_move(int move, int move_flag);
 void print_move_list(MoveList move_list);
 
 

@@ -1,14 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include "vars.h"
 #include "move_generation.h"
 #include "init_attacks.h"
 
 #define empty_board "8/8/8/8/8/8/8/8 w - - "
 #define start_position "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
-#define tricky_position "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBQPPP/R3K2R w KQkq - 0 1 "
+#define tricky_position "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
 
+// get time in milliseconds
+int get_time_ms() {  
+  struct timeval time_value;
+  gettimeofday(&time_value, NULL);
+  return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
+    
+}
 
 void print_board() {
     printf("  +-----------------+\n");
@@ -74,9 +82,8 @@ void fen_parser(char *fen) {
   memset(occupancies, 0ULL, sizeof(occupancies)); // initialise occupancies
 
   int pos = 0;
-
   int i=0;
-  
+
   for (i = 0; i < strlen(fen); i++) {
 
     if (fen[i] == 32) {
@@ -124,7 +131,6 @@ void fen_parser(char *fen) {
     i+=2;
   } else {
     enpassant = (8-(fen[i+1] - '0'))*8 + (fen[i] - 97);
-    printf("%d\n", enpassant);
     i+=3;
   }
 
@@ -150,6 +156,43 @@ void fen_parser(char *fen) {
   occupancies[both] |= occupancies[black]; 
 }
 
+long nodes;
+
+int count=0;
+
+void perft(int depth) {
+  
+  MoveList move_list;
+  
+  
+  if (depth == 0) {
+    nodes++;
+    return;
+  }
+
+  move_generator(&move_list);
+  
+
+  // loop over generated moves
+  for (int move_count = 0; move_count < move_list.move_count; move_count++) {
+      
+    // preserve board state
+    copy_board();
+    
+    // make move
+    if (!make_move(move_list.moves[move_count], all_moves))
+      // skip to the next move
+      continue;
+    // make_move(move_list.moves[move_count], all_moves);
+
+
+    perft(depth-1);
+    
+    take_back();
+  }
+
+}
+
 
 
 
@@ -157,8 +200,6 @@ int main(int argc, char *argv[]) {
 
 
   
-
-  MoveList move_list;
   init_all();
 
     
@@ -166,36 +207,19 @@ int main(int argc, char *argv[]) {
   // fen_parser("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBqPPP/R3K2R w KQkq - 0 1 ");
   
 
-  move_generator(&move_list);
   print_board();
 
 
-  print_move_list(move_list);
-
-  // loop over generated moves
-  for (int move_count = 0; move_count < move_list.move_count; move_count++) {
-      // init move
-      int move = move_list.moves[move_count];
-      
-      // preserve board state
-      copy_board();
-      
-      // make move
-      if (!make_move(move, all_moves))
-        // skip to the next move
-        continue;
-
-      print_board();
-      getchar();
-      
-      // take back
-      take_back();
-      print_board();
-      getchar();
-  }
+  int start = get_time_ms(); 
 
 
+  perft(3);
 
+  printf("time taken to execute: %d ms\n", get_time_ms() - start);
+  printf("%ld\n", nodes);
+  
+
+  
 	return 0;
 }
 
