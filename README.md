@@ -15,4 +15,4 @@ each type)
 - Rook
 - Bishop
 
-TODO: make move list as struct, add moves from move generator function, testing
+TODO: FIX MOVE GENERATION

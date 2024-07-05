@@ -144,7 +144,7 @@ const char *square_to_coordinates[] = {
 int to_move;
 
 // enpassant square
-int enpassant; 
+int enpassant=-1; 
 
 // castling rights
 int castle;

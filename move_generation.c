@@ -158,7 +158,7 @@ const int castling_rights[64] = {
 
 int make_move(int move, int move_flag) {
 
-  // printf("%d ", move);
+  // printf("%d\n", move);
   
 
   if (move_flag==all_moves) { // quiet moves
@@ -196,8 +196,6 @@ int make_move(int move, int move_flag) {
     
 
     if (promoted_piece) {
-      printf("%s -> %s\n", square_to_coordinates[source_square], square_to_coordinates[target_square]);
-
       remove_bit(&bitboards[piece], target_square); // remove source piece from bitboard
       set_bit(&bitboards[promoted_piece], target_square); // move piece to target square and change it to promoted piece
     }
@@ -390,7 +388,7 @@ void generate_rook_moves(U64 bitboard, MoveList *move_list) {
     while (target_squares) {
       target_square = bitScanForward(target_squares);
       if (check_if_set(attacks, target_square)) { // capture move
-        add_move(move_list, encode_move(target_square, piece, 0, 1, 0, 0, 0, 0));
+        add_move(move_list, encode_move(target_square, piece, 0, 0, 1, 0, 0, 0));
       } else { // quiet move
         add_move(move_list, encode_move(source_square, target_square, piece, 0, 0, 0, 0, 0));
       }
@@ -522,7 +520,7 @@ void move_generator(MoveList *move_list) {
     if (piece==P) { // white or black pawns
       generate_pawn_moves(to_move==white ? bitboards[P] : bitboards[p], move_list);
     }  else if (piece==B) {
-       generate_bishop_moves(to_move==white ? bitboards[B] : bitboards[b], move_list);
+      generate_bishop_moves(to_move==white ? bitboards[B] : bitboards[b], move_list);
     } else if (piece==R) {
       generate_rook_moves(to_move==white ? bitboards[R] : bitboards[r], move_list);
     } else if (piece==N) {
