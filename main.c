@@ -171,6 +171,14 @@ void perft(int depth) {
   }
 
   move_generator(&move_list);
+  count++;
+  // printf("%d\n", move_list.move_count);
+
+  if (count==345) {
+    print_board();
+    print_move_list(move_list);
+  }     
+
   
 
   // loop over generated moves
@@ -180,10 +188,10 @@ void perft(int depth) {
     copy_board();
     
     // make move
-    if (!make_move(move_list.moves[move_count], all_moves))
+    // if (!make_move(move_list.moves[move_count], all_moves))
       // skip to the next move
-      continue;
-    // make_move(move_list.moves[move_count], all_moves);
+      // continue;
+    make_move(move_list.moves[move_count], all_moves);
 
 
     perft(depth-1);

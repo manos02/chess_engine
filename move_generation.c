@@ -114,10 +114,10 @@ void print_move_list(MoveList move_list) {
                                                                                   square_to_coordinates[decode_target_square(move)],
                                                                                   decode_promoted_piece(move) ? promoted_pieces[decode_promoted_piece(move)] : ' ',
                                                                                   unicode_pieces[decode_piece(move)],
-                                                                                  decode_capture_flag(move),
-                                                                                  decode_dp_flag(move),
-                                                                                  decode_enpassant_flag(move),
-                                                                                  decode_castling_flag(move));
+                                                                                  decode_capture_flag(move)? 1 : 0,
+                                                                                  decode_dp_flag(move)? 1 : 0,
+                                                                                  decode_enpassant_flag(move)? 1 : 0,
+                                                                                  decode_castling_flag(move) ? 1 : 0);
   }
 
   printf("\n\n     Total number of moves: %d\n\n", move_list.move_count);
@@ -378,11 +378,12 @@ void generate_rook_moves(U64 bitboard, MoveList *move_list) {
   int piece = (to_move==white? R : r);
 
 
-  while (bitboard != 0ULL) {
+  while (bitboard) {
     source_square = bitScanForward(bitboard);
 
     // target empty and opposite color squares
     target_squares = get_rook_attacks(source_square, occupancies[both]) & ((to_move == white) ? ~occupancies[white] : ~occupancies[black]);
+      
     attacks = target_squares & (to_move == white ? occupancies[black] : occupancies[white]);
 
     while (target_squares) {
